@@ -1,0 +1,75 @@
+int lLeft = 1, lBottom=2, lRight=3, lTop=4, lHole = 5;
+
+real H = 2;
+real L = 3;
+
+//real x0 = 1.5;
+//real y0 = 0.8;
+real rr = 0.25;
+
+real h = 0.05;
+
+real EPS=1e-8;
+
+border bLeft(t=0, 1){x=0; y=H*(1-t); label=lLeft;} 
+border bBottom(t=0, 1){x=L*t; y=0; label=lBottom;} // (0,-1) -> (1.5,-1)
+border bRight(t=0, 1){x=L; y=H*t; label=lRight;}
+border bTop(t=0, 1){x=L*(1-t); y=H; label=lTop;}
+//border vessel(t=0, 2*pi){x=x0+rr*cos(t); y=y0+rr*sin(t); label= lHole;}
+
+
+
+//mesh Th = buildmesh(bLeft(ceil(H/h)) + bBottom( ceil(L/h) ) + bRight( ceil(H/h)) + bTop( ceil(L/h) ) + vessel(-20));
+mesh Th = buildmesh(bLeft(ceil(H/h)) + bBottom( ceil(L/h) ) + bRight( ceil(H/h)) + bTop( ceil(L/h) ));
+plot(Th, wait=true);
+
+
+real x0 = 0.1;
+real x1 = 0.3;
+real y0 = 0.5;
+real y1 = 0.5;
+
+
+
+// Fespace
+fespace Vh(Th, P1);
+int n = Vh.ndof;
+int n1 = n+1;
+// FE functions (ansatz & test)
+Vh uh, vh;
+Vh g = 1;
+
+real epsGamma = 0.01;
+Vh chi = (x>x0)*(x<x1)*(abs(y-y0)<epsGamma);
+plot(Th,chi,wait=1);
+
+problem laplacianWithHole(uh,vh) =
+  // matrix
+  int2d(Th)(
+          dx(uh)*dx(vh)
+        + dy(uh)*dy(vh)
+    )
+  // RHS du/dn = g
+  - int2d(Th)(g*vh)
+  // Boundary conditions
+  + on(lLeft,lRight,lTop,lBottom,uh=0)
+    ;
+
+
+
+// variational forms
+// Laplacian
+varf va (uh, vh)
+    = int2d(Th)(
+          dx(uh)*dx(vh)
+        + dy(uh)*dy(vh)
+    )
+    ;
+matrix A = va(Vh, Vh);
+
+// int_Gamma (v)
+varf vL (uh, vh) = int2d(Th)(-dy(vh)*1./epsGamma*chi);
+real[int] B = vL(0, Vh);
+cout << B;
+laplacianWithHole;
+plot(uh,wait=1);
